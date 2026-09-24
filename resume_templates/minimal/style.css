@@ -1,0 +1,34 @@
+/* minimal: whitespace, small caps section titles, thin rules. */
+body {
+  --accent: #5c5c58;
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  font-size: 9.25pt;
+  line-height: 1.45;
+  color: #262624;
+}
+
+.head { margin-bottom: 14pt; }
+.name { font-size: 17pt; font-weight: 500; letter-spacing: 0.01em; line-height: 1.2; }
+.headline { font-size: 10pt; color: var(--accent); margin-top: 1pt; }
+.contacts { font-size: 8.5pt; color: #5c5c58; margin-top: 7pt; }
+.sep { color: #c4c4bf; }
+
+.section { margin-top: 12pt; padding-top: 7pt; border-top: 0.5pt solid #c9c9c4; }
+.section-title {
+  font-size: 7.75pt;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  margin-bottom: 6pt;
+}
+
+.section-body > p + p, .entry + .entry, .section-body > ul + .entry { margin-top: 7pt; }
+.entry h3 { font-size: 9.5pt; font-weight: 500; }
+.entry-date { color: #7a7a75; font-size: 8.5pt; }
+.entry-head + p { font-size: 8.75pt; color: #5c5c58; margin-bottom: 2pt; }
+ul { list-style: none; padding-left: 0; }
+li { margin-top: 1.5pt; padding-left: 9pt; position: relative; }
+li::before { content: "-"; position: absolute; left: 0; color: #9a9a95; }
+li p { display: inline; }
+strong { font-weight: 500; }

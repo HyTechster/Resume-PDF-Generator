@@ -1,0 +1,30 @@
+/* modern: single column, sans, one accent colour (deep teal by default). */
+body {
+  --accent: #0d6b62;
+  font-family: "Geist", "Helvetica Neue", Arial, sans-serif;
+  font-size: 9.75pt;
+  line-height: 1.42;
+}
+
+.head { padding-bottom: 10pt; border-bottom: 1.5pt solid var(--accent); margin-bottom: 4pt; }
+.name { font-size: 25pt; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.headline { font-size: 11.5pt; font-weight: 500; color: var(--accent); margin-top: 2pt; }
+.contacts { font-size: 9pt; color: #4a4a47; margin-top: 6pt; }
+.sep { color: #b0b0ab; }
+
+.section { margin-top: 12pt; }
+.section-title {
+  font-size: 10.5pt;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 5pt;
+}
+
+.section-body > p + p, .entry + .entry, .section-body > ul + .entry { margin-top: 7pt; }
+.entry h3 { font-size: 10.25pt; font-weight: 600; }
+.entry-date { color: #6b6b67; font-size: 9pt; }
+.entry-head + p { font-size: 9.25pt; color: #4a4a47; margin-bottom: 2pt; }
+li { margin-top: 1.5pt; }
+li::marker { color: var(--accent); }
+li p { display: inline; }
+strong { font-weight: 500; }

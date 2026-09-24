@@ -1,0 +1,4 @@
+Flask>=3.1
+WeasyPrint>=70
+markdown-it-py>=4.0
+pytest>=8

@@ -1,0 +1,31 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Flask / secrets
+.env
+.flaskenv
+instance/
+
+# Generated PDFs from manual testing (the app itself never writes to disk)
+*.pdf
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code local settings (shared skills and settings.json stay tracked)
+.claude/settings.local.json
+.claude
+CLAUDE.md
+

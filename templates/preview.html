@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_settings.html" import segmented, style_controls %}
+{% block title %}Preview: {{ name }} | Resume PDF{% endblock %}
+
+{% block main %}
+<div class="preview">
+  <form class="preview-panel" method="post" action="{{ url_for('pdf') }}" data-autosubmit>
+    {% for key, value in hidden %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+
+    <a class="btn btn-ghost back-link" href="{{ url_for('index') }}">Back to edit</a>
+
+    <div class="settings">
+      <fieldset class="setting">
+        <legend>Template</legend>
+        {{ segmented("template", templates, values.get("template", "classic")) }}
+      </fieldset>
+      {{ style_controls(values, style_options, accents, page_sizes) }}
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn btn-primary">Download PDF</button>
+      <button type="submit" class="btn btn-secondary" formaction="{{ url_for('preview') }}" data-update>Update preview</button>
+    </div>
+  </form>
+
+  <div class="sheet-wrap">
+    <iframe class="sheet sheet-{{ values.get('page_size', 'A4')|lower }}" title="Resume preview for {{ name }}"
+      sandbox="allow-same-origin" srcdoc="{{ resume_html }}"></iframe>
+    <p class="preview-note">The PDF may break lines slightly differently from this preview.</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% from "_settings.html" import style_controls %}
+
+{% macro field(name, label, placeholder="", type="text", hint="", autocomplete="off", required=false) %}
+  <div class="field{% if errors[name] %} has-error{% endif %}">
+    <label for="f-{{ name }}">{{ label }}{% if required %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+    {% if hint %}<p class="hint" id="f-{{ name }}-hint">{{ hint }}</p>{% endif %}
+    <input id="f-{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ values.get(name, '') }}"
+      placeholder="{{ placeholder }}" autocomplete="{{ autocomplete }}"{% if required %} required{% endif %}
+      {% if errors[name] %}aria-invalid="true" aria-describedby="f-{{ name }}-error"{% elif hint %}aria-describedby="f-{{ name }}-hint"{% endif %}>
+    {% if errors[name] %}<p class="error" id="f-{{ name }}-error">{{ errors[name] }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{# Repeatable entries. Fields share a name (experience_title, ...) and are zipped back together on the server. #}
+{% set entry_forms = {
+  "experience": {"add": "Add a role", "noun": "role", "fields": [
+    ("title", "Job title", "Software Engineering Intern"),
+    ("org", "Company", "Tanjung Data Sdn Bhd"),
+    ("location", "Location", "Kuala Lumpur"),
+    ("dates", "Dates", "Jun 2025 to Sep 2025"),
+    ("details", "What you did", "Built a Flask service for daily sales reports\nAdded tests to the billing module")]},
+  "education": {"add": "Add a qualification", "noun": "qualification", "fields": [
+    ("title", "Qualification", "BSc (Hons) Computer Science"),
+    ("org", "School or university", "Multimedia University"),
+    ("location", "Location", "Cyberjaya"),
+    ("dates", "Dates", "2021 to 2025"),
+    ("details", "Highlights", "CGPA 3.61, Dean's List\nFinal year project: Bahasa Melayu spell checker")]},
+  "projects": {"add": "Add a project", "noun": "project", "fields": [
+    ("title", "Project name", "Jom Makan, lunch spot finder"),
+    ("org", "Built with", "React, Supabase"),
+    ("dates", "Year", "2024"),
+    ("details", "What it does", "Suggests halal lunch spots near campus\n300 active users in the first month")]},
+  "certifications": {"add": "Add a certificate", "noun": "certificate", "fields": [
+    ("title", "Certificate", "AWS Certified Cloud Practitioner"),
+    ("org", "Issued by", "Amazon Web Services"),
+    ("dates", "Year", "2024")]},
+} %}
+
+{% macro value_at(name, i) %}{% set vals = values.getlist(name) %}{{ vals[i] if i is not none and i < vals|length else '' }}{% endmacro %}
+
+{% macro entry_card(key, cfg, i) %}
+  <div class="entry-card" data-entry>
+    <div class="entry-grid">
+      {% for f, label, placeholder in cfg.fields %}
+      <label class="field{% if f == 'details' %} field-wide{% endif %}">
+        {% if f == 'details' %}
+        <span class="label">{{ label }} <span class="label-note">one point per line</span></span>
+        <textarea name="{{ key }}_{{ f }}" rows="3" placeholder="{{ placeholder }}">{{ value_at(key ~ '_' ~ f, i) }}</textarea>
+        {% else %}
+        <span class="label">{{ label }}</span>
+        <input type="text" name="{{ key }}_{{ f }}" value="{{ value_at(key ~ '_' ~ f, i) }}" placeholder="{{ placeholder }}">
+        {% endif %}
+      </label>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn btn-ghost btn-small entry-remove" data-remove>Remove {{ cfg.noun }}</button>
+  </div>
+{% endmacro %}
+
+{% macro skill_row(i) %}
+  <div class="skill-row" data-entry>
+    <label class="field">
+      <span class="label">Group</span>
+      <input type="text" name="skills_label" value="{{ value_at('skills_label', i) }}" placeholder="Languages">
+    </label>
+    <label class="field">
+      <span class="label">Skills</span>
+      <input type="text" name="skills_items" value="{{ value_at('skills_items', i) }}" placeholder="Python, TypeScript, SQL">
+    </label>
+    <button type="button" class="btn btn-ghost btn-small skill-remove" data-remove aria-label="Remove this skill group">Remove</button>
+  </div>
+{% endmacro %}
+
+{% block main %}
+<form id="resume-form" class="layout" method="post" action="{{ url_for('preview') }}" novalidate
+  data-restore-draft="{{ 'true' if restore_draft else 'false' }}">
+
+  <div class="intro">
+    <h1>Make your resume</h1>
+    <p>Fill in the form or paste Markdown. Pick a layout, preview it, then download a PDF.</p>
+  </div>
+
+  {% if errors %}
+  <div class="alert" role="alert">
+    {% if errors.form %}{{ errors.form }}{% else %}A few things need fixing before we can build your PDF. They are marked below.{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="editor">
+    <input class="mode-radio" type="radio" name="mode" value="form" id="mode-form"{% if values.get('mode') != 'markdown' %} checked{% endif %}>
+    <input class="mode-radio" type="radio" name="mode" value="markdown" id="mode-markdown"{% if values.get('mode') == 'markdown' %} checked{% endif %}>
+    <div class="tabs">
+      <label class="tab" for="mode-form">Form</label>
+      <label class="tab" for="mode-markdown">Markdown</label>
+    </div>
+
+    <div class="panel panel-form">
+      <fieldset class="group">
+        <legend>About you</legend>
+        <div class="row">
+          {{ field("name", "Full name", "Nurul Aisyah Kamarudin", autocomplete="name", required=true) }}
+          {{ field("headline", "Headline", "Software Engineer", autocomplete="organization-title") }}
+        </div>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend>Contact</legend>
+        <div class="row">
+          {{ field("email", "Email", "aisyah.k@gmail.com", type="email", autocomplete="email") }}
+          {{ field("phone", "Phone", "+60 12-348 1927", type="tel", autocomplete="tel") }}
+        </div>
+        <div class="row">
+          {{ field("location", "Location", "Shah Alam, Selangor", autocomplete="address-level2") }}
+          {{ field("links", "Links", "linkedin.com/in/aisyahk, github.com/aisyahk", hint="Separate with commas.") }}
+        </div>
+      </fieldset>
+
+      {% if errors.sections %}<p class="error sections-error" id="sections-error">{{ errors.sections }}</p>{% endif %}
+
+      {% for key, title, kind in sections %}
+      <fieldset class="group">
+        <legend>{{ title }}</legend>
+        {% if kind == "text" %}
+        <div class="field">
+          <label class="visually-hidden" for="f-{{ key }}">{{ title }}</label>
+          <p class="hint" id="f-{{ key }}-hint">Two or three lines about who you are and what you want next.</p>
+          <textarea id="f-{{ key }}" name="{{ key }}" rows="3" aria-describedby="f-{{ key }}-hint"
+            placeholder="Computer Science graduate who enjoys building tools people use every day.">{{ values.get(key, '') }}</textarea>
+        </div>
+        {% elif kind == "skills" %}
+        <div class="entry-list" data-entries="{{ key }}" data-count="skills_label">
+          {% for i in range([values.getlist('skills_label')|length, 1]|max) %}{{ skill_row(i) }}{% endfor %}
+        </div>
+        <button type="button" class="btn btn-ghost btn-small add-btn" data-add="{{ key }}" hidden>Add a skill group</button>
+        <template id="entry-{{ key }}">{{ skill_row(none) }}</template>
+        {% else %}
+        {% set cfg = entry_forms[key] %}
+        <div class="entry-list" data-entries="{{ key }}" data-count="{{ key }}_title">
+          {% for i in range([values.getlist(key ~ '_title')|length, 1]|max) %}{{ entry_card(key, cfg, i) }}{% endfor %}
+        </div>
+        <button type="button" class="btn btn-ghost btn-small add-btn" data-add="{{ key }}" hidden>{{ cfg.add }}</button>
+        <template id="entry-{{ key }}">{{ entry_card(key, cfg, none) }}</template>
+        {% endif %}
+      </fieldset>
+      {% endfor %}
+      <p class="group-note">Leave anything empty to skip it. Bullets and bold labels are added for you.</p>
+    </div>
+
+    <div class="panel panel-markdown">
+      <div class="field{% if errors.markdown %} has-error{% endif %}">
+        <div class="field-head">
+          <label for="f-markdown">Your resume in Markdown</label>
+          <button type="button" class="btn btn-ghost btn-small" data-load-sample>Load sample</button>
+        </div>
+        <p class="hint" id="f-markdown-hint">Start with <code># Your Name</code>, then your headline, then contacts split by <code>|</code>. Each <code>##</code> starts a section, each <code>###</code> an entry. An <code>*italic line*</code> right under it becomes the date.</p>
+        <textarea id="f-markdown" name="markdown" class="mono" rows="24" spellcheck="false"
+          placeholder="# Nurul Aisyah Kamarudin&#10;Software Engineer&#10;aisyah.k@gmail.com | +60 12-348 1927 | Cyberjaya&#10;&#10;## Experience&#10;### Software Engineering Intern&#10;*Jun 2025 to Sep 2025*&#10;Tanjung Data Sdn Bhd, Kuala Lumpur&#10;- Built ..."
+          {% if errors.markdown %}aria-invalid="true" aria-describedby="f-markdown-error"{% else %}aria-describedby="f-markdown-hint"{% endif %}>{{ values.get('markdown', '') }}</textarea>
+        {% if errors.markdown %}<p class="error" id="f-markdown-error">{{ errors.markdown }}</p>{% endif %}
+      </div>
+      <template id="sample-md">{{ sample_md }}</template>
+    </div>
+  </div>
+
+  <aside class="side">
+    <fieldset class="picker{% if errors.template %} has-error{% endif %}">
+      <legend>Template</legend>
+      {% if errors.template %}<p class="error">{{ errors.template }}</p>{% endif %}
+      <div class="tpl-list">
+        {% for name in templates %}
+        <label class="tpl">
+          <input class="visually-hidden" type="radio" name="template" value="{{ name }}"{% if values.get('template', 'classic') == name %} checked{% endif %}>
+          <img class="tpl-thumb" src="{{ url_for('static', filename='img/thumb-' ~ name ~ '.png') }}" alt="" width="64" height="90" loading="lazy">
+          <span class="tpl-text">
+            <span class="tpl-name">{{ name|capitalize }}</span>
+            <span class="tpl-note">{{ template_notes.get(name, '') }}</span>
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <details class="more">
+      <summary>Style and layout</summary>
+      <div class="settings">{{ style_controls(values, style_options, accents, page_sizes) }}</div>
+    </details>
+
+    <div class="actions">
+      <button type="submit" class="btn btn-primary">Preview</button>
+      <button type="submit" class="btn btn-secondary" formaction="{{ url_for('pdf') }}">Download PDF</button>
+    </div>
+    <p class="side-note">Your draft is saved in this browser only.</p>
+  </aside>
+</form>
+{% endblock %}

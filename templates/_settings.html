@@ -1,0 +1,54 @@
+{# Style controls shared by the form page and the preview page. #}
+
+{% macro segmented(name, options, current, labels={}) %}
+<div class="segmented segmented-fill">
+  {% for opt in options %}
+  <label>
+    <input class="visually-hidden" type="radio" name="{{ name }}" value="{{ opt }}"{% if current == opt %} checked{% endif %}>
+    <span>{{ labels.get(opt, opt|capitalize) }}</span>
+  </label>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro style_controls(values, style_options, accents, page_sizes) %}
+<fieldset class="setting">
+  <legend>Colour</legend>
+  <div class="swatches">
+    {% for key, hex in accents.items() %}
+    {% set label = key|capitalize if hex else "Template default" %}
+    <label class="swatch" title="{{ label }}">
+      <input class="visually-hidden" type="radio" name="accent" value="{{ key }}"{% if values.get('accent', 'default') == key %} checked{% endif %}>
+      <span class="swatch-dot{% if not hex %} swatch-default{% endif %}"{% if hex %} style="--swatch: {{ hex }}"{% endif %}></span>
+      <span class="visually-hidden">{{ label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  <p class="hint">The dashed circle keeps the template's own colour.</p>
+</fieldset>
+
+<fieldset class="setting">
+  <legend>Name and contact</legend>
+  {{ segmented("header_align", style_options.header_align, values.get("header_align", "default")) }}
+</fieldset>
+
+<fieldset class="setting">
+  <legend>Section titles</legend>
+  {{ segmented("title_align", style_options.title_align, values.get("title_align", "default")) }}
+</fieldset>
+
+<fieldset class="setting">
+  <legend>Paragraphs</legend>
+  {{ segmented("body_align", style_options.body_align, values.get("body_align", "left"), {"justify": "Justified"}) }}
+</fieldset>
+
+<fieldset class="setting">
+  <legend>Dates</legend>
+  {{ segmented("dates", style_options.dates, values.get("dates", "right"), {"right": "Same line, right", "below": "Under title"}) }}
+</fieldset>
+
+<fieldset class="setting">
+  <legend>Paper size</legend>
+  {{ segmented("page_size", page_sizes, values.get("page_size", "A4"), {"A4": "A4", "Letter": "Letter"}) }}
+</fieldset>
+{% endmacro %}

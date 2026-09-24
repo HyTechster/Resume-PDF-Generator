@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Resume PDF{% endblock %}</title>
+  <meta name="description" content="Fill in a form or paste Markdown, pick a layout and download your resume as a PDF.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/geist-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="wordmark" href="{{ url_for('index') }}">Resume PDF</a>
+    <span class="site-note">Nothing is stored on the server</span>
+  </header>
+  <main class="site-main">
+    {% block main %}{% endblock %}
+  </main>
+</body>
+</html>

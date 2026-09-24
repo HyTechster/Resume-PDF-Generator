@@ -1,0 +1,32 @@
+/* classic: single column, serif, black on white. */
+body {
+  --accent: #1c1c1a;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 10.25pt;
+  line-height: 1.36;
+}
+
+.head { text-align: center; margin-bottom: 12pt; }
+.name { font-size: 21pt; font-weight: 600; letter-spacing: 0.01em; line-height: 1.15; color: var(--accent); }
+.headline { font-size: 11pt; margin-top: 2pt; }
+.contacts { font-size: 9.25pt; margin-top: 5pt; color: #3a3a37; }
+.sep { color: #8a8a86; }
+
+.section { margin-top: 11pt; }
+.section-title {
+  font-size: 10.5pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  padding-bottom: 2.5pt;
+  border-bottom: 0.75pt solid var(--accent);
+  margin-bottom: 6pt;
+}
+
+.section-body > p + p, .entry + .entry, .section-body > ul + .entry { margin-top: 6pt; }
+.entry h3 { font-size: 10.5pt; font-weight: 600; }
+.entry-date { font-style: italic; color: #55554f; font-size: 9.5pt; }
+.entry-head + p { font-style: italic; font-size: 9.75pt; color: #3a3a37; margin-bottom: 1.5pt; }
+li { margin-top: 1.5pt; }
+li p { display: inline; }

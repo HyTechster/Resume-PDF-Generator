@@ -1,5 +1,7 @@
 # Resume PDF Generator
 
+![Resume PDF Generator: fill a form, pick a layout, download a polished resume as PDF or Word](docs/thumbnail.png)
+
 A small web app that turns a form (or a Markdown document) into a clean, ATS-friendly resume.
 Pick one of three layouts, tweak colour and alignment, preview the real pages, and download as PDF or Word.
 
@@ -245,3 +247,8 @@ SECRET_KEY=change-me gunicorn --workers 2 --bind 0.0.0.0:8000 app:app
 
 - Optional profile photo, uploaded per request and never stored
 - Bahasa Melayu section titles toggle
+
+## License
+
+[MIT](LICENSE.md) © 2026 Wan Amirul Amir bin Wan Romzi. This applies to all versions of this project,
+including commits made before the license file was added.

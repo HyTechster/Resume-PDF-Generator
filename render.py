@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 from urllib.request import url2pathname
 
+import pypdfium2 as pdfium
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markupsafe import Markup
 from weasyprint import HTML
@@ -116,3 +118,38 @@ def render_pdf(resume: Resume, template: str, page_size: str = "A4", style: Styl
         base_url=BASE_DIR.as_uri() + "/",
         url_fetcher=LocalStaticFetcher(),
     ).write_pdf()
+
+
+@dataclass
+class PageImage:
+    data: bytes
+    width: int
+    height: int
+
+
+def render_page_images(
+    resume: Resume,
+    template: str,
+    page_size: str = "A4",
+    style: Style | None = None,
+    width_px: int = 1588,
+    fmt: str = "WEBP",
+) -> list[PageImage]:
+    """Render the real PDF and return one image per page, so the preview shows exact page breaks.
+
+    1588px is twice the on-screen sheet width (794px), which keeps text sharp on high-density screens.
+    """
+    pdf = pdfium.PdfDocument(render_pdf(resume, template, page_size, style))
+    try:
+        pages = []
+        for page in pdf:
+            image = page.render(scale=width_px / page.get_width()).to_pil()
+            buffer = BytesIO()
+            if fmt == "WEBP":
+                image.save(buffer, fmt, quality=85)
+            else:
+                image.save(buffer, fmt, optimize=True)
+            pages.append(PageImage(buffer.getvalue(), image.width, image.height))
+        return pages
+    finally:
+        pdf.close()

@@ -1,4 +1,6 @@
 Flask>=3.1
 WeasyPrint>=70
 markdown-it-py>=4.0
+python-docx>=1.2
+pypdfium2>=5.0
 pytest>=8

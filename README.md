@@ -1,7 +1,7 @@
 # Resume PDF Generator
 
-A small web app that turns a form (or a Markdown document) into a clean, ATS-friendly resume PDF.
-Pick one of three layouts, tweak colour and alignment, preview it, and download.
+A small web app that turns a form (or a Markdown document) into a clean, ATS-friendly resume.
+Pick one of three layouts, tweak colour and alignment, preview the real pages, and download as PDF or Word.
 
 No database, no accounts. Nothing the user types is stored on the server or written to disk.
 The only persistence is a draft kept in the user's own browser (`localStorage`).
@@ -15,13 +15,17 @@ The only persistence is a draft kept in the user's own browser (`localStorage`).
   All are single column with real, selectable text.
 - **Style options:** formal colours only, name and section title alignment, left or justified paragraphs,
   dates on the heading line (right-aligned, grey) or under the title, A4 or Letter.
-- **Live preview:** the preview page re-renders as soon as a setting changes.
+- **True page preview:** the preview shows the actual PDF pages as A4 or Letter sheets, so page breaks
+  match the download exactly. It warns when the resume runs past one page.
+- **Live settings:** the preview re-renders as soon as a setting changes.
+- **PDF or Word:** download a PDF, or a `.docx` built from the same content with the same layout choices
+  (dates on a right-aligned tab stop, real bullet lists, section rules).
 - **Safe by default:** raw HTML in input is escaped, and the PDF renderer can only load files from `static/`,
   so user input cannot make the server fetch remote URLs.
 
 ## Why Flask
 
-This app is three routes that render HTML forms and return a file. Flask fits that shape closely:
+This app is a handful of routes that render HTML forms and return a file. Flask fits that shape closely:
 
 - **Jinja is already the core of the product.** The resume layouts are Jinja templates rendered to HTML for
   WeasyPrint. Flask uses Jinja for its web pages too, so the website and the printed document share one
@@ -32,7 +36,7 @@ This app is three routes that render HTML forms and return a file. Flask fits th
   Here the work is server-rendered forms plus CPU-bound PDF rendering (WeasyPrint is synchronous),
   so async buys nothing.
 - **The whole flow fits in a few short files.** `request.form.getlist()` handles the repeatable form fields,
-  and `send_file(BytesIO(...))` streams the PDF from memory. `app.py` is about 120 lines.
+  and `send_file(BytesIO(...))` streams the PDF or Word file from memory. `app.py` is about 130 lines.
 - **Easy to run and deploy.** It is a plain WSGI app: `flask run` in development, Gunicorn or similar in production.
 
 ## Requirements
@@ -89,8 +93,8 @@ pytest
 ```
 
 The tests cover Markdown parsing, form mapping, empty sections being dropped, HTML escaping, the style
-whitelist, the local-only URL fetcher, the routes, and that the sample resume fits on one page in every
-template at A4 and Letter.
+whitelist, the local-only URL fetcher, the routes, the page preview images, the Word export, and that the
+sample resume fits on one page in every template at A4 and Letter.
 
 ## Configuration
 
@@ -102,9 +106,10 @@ template at A4 and Letter.
 ## Project structure
 
 ```
-app.py                  Flask app and the three routes
+app.py                  Flask app and the routes
 resume.py               form fields or Markdown -> Resume dataclass
-render.py               Resume + template + style -> HTML -> PDF bytes
+render.py               Resume + template + style -> HTML -> PDF bytes, plus page images for the preview
+render_docx.py          Resume + template + style -> Word (.docx) bytes
 templates/              web UI (Jinja): base, form, preview, shared settings controls
 resume_templates/       print layouts, one folder each (resume.html + style.css), plus shared.css
 static/css/app.css      web UI styles and design tokens (light and dark mode)
@@ -118,18 +123,27 @@ tests/test_resume.py    pytest suite
 ## How it works
 
 ```
-form fields  --\
-                 resume.py -> Resume(name, headline, contacts, sections[title, html])
-Markdown     --/                          |
-                           render.py: Jinja layout + CSS + Style -> HTML
-                                          |
-                     /preview: HTML in an iframe     /pdf: WeasyPrint -> PDF bytes
+form fields  --+
+               +--> resume.py --> Resume(name, headline, contacts, sections[title, html])
+Markdown     --+                        |
+                                        +--> render.py: Jinja layout + CSS + Style --> HTML
+                                        |        |
+                                        |        +--> WeasyPrint --> PDF bytes --> /pdf
+                                        |                  |
+                                        |                  +--> pypdfium2 --> page images --> /preview
+                                        |
+                                        +--> render_docx.py: python-docx --> .docx bytes --> /docx
 ```
 
 - Both input modes produce the same `Resume` dataclass, so layouts only ever see one shape.
 - Each entry renders as `.entry > .entry-head > h3 + .entry-date`, followed by the details. That is how the
   date sits on the same line as the title.
-- The preview page carries the user's input in hidden fields and posts it again to `/pdf`,
+- The preview renders the real PDF and turns each page into an image with `pypdfium2`, so what you see is
+  exactly what downloads, page breaks included.
+- The Word export reads the same section HTML (generated by `resume.py`, so a small known set of tags) and
+  writes real Word paragraphs, lists, tab stops and borders. Word cannot use the web fonts, so each template
+  maps to a standard font: Georgia (classic), Calibri (modern), Arial (minimal).
+- The preview page carries the user's input in hidden fields and posts it again to `/pdf` or `/docx`,
   so the server keeps no state between requests.
 
 ### Routes
@@ -137,8 +151,9 @@ Markdown     --/                          |
 | Method | Path | Does |
 |---|---|---|
 | GET | `/` | The form, template picker and style options |
-| POST | `/preview` | Validates input and shows the rendered resume with live settings |
+| POST | `/preview` | Validates input and shows the real PDF pages with live settings |
 | POST | `/pdf` | Validates input and returns `<Full_Name>_Resume.pdf` as a download |
+| POST | `/docx` | Validates input and returns `<Full_Name>_Resume.docx` as a download |
 
 Invalid input re-renders the form with every value kept and errors shown inline.
 
@@ -169,7 +184,8 @@ See `samples/sample.md` for a full example. The "Load sample" button in the Mark
 2. Use the same class names (`.head`, `.name`, `.section-title`, `.entry-head`, `.entry-date`, and so on)
    so the style options work, and set your default colour as `body { --accent: ...; }`.
 3. Keep it print design: single column, real text, `@page` from `shared.css`, no viewport units.
-4. Add a one-line description in `TEMPLATE_NOTES` in `app.py`.
+4. Add a one-line description in `TEMPLATE_NOTES` in `app.py`, and a matching `Look` in `render_docx.py`
+   (otherwise the Word export falls back to the classic look).
 5. Add a thumbnail at `static/img/thumb-<name>.png` (see below).
 6. Run `pytest`. The new folder is picked up automatically, and the one-page test will check it.
 
@@ -177,22 +193,16 @@ The folder name is the whitelist: only folders containing `resume.html` are acce
 
 ### Regenerating thumbnails
 
-Thumbnails are real renders of `samples/sample.md`. PyMuPDF is only needed for this step, so it is not
-in `requirements.txt`. Install it in a separate environment, then run this from the project root:
+Thumbnails are real renders of `samples/sample.md`. From the project root, with the venv active:
 
 ```bash
-.venv/bin/python -c "
+python -c "
 from pathlib import Path
-from render import render_pdf
+from render import render_page_images
 from resume import parse_markdown
 r = parse_markdown(Path('samples/sample.md').read_text())
 for t in ['classic', 'modern', 'minimal']:
-    Path(f'/tmp/{t}.pdf').write_bytes(render_pdf(r, t))
-"
-/path/to/other-venv/bin/python -c "
-import pymupdf
-for t in ['classic', 'modern', 'minimal']:
-    pymupdf.open(f'/tmp/{t}.pdf')[0].get_pixmap(dpi=42).save(f'static/img/thumb-{t}.png')
+    Path(f'static/img/thumb-{t}.png').write_bytes(render_page_images(r, t, width_px=347, fmt='PNG')[0].data)
 "
 ```
 
@@ -226,12 +236,12 @@ SECRET_KEY=change-me gunicorn --workers 2 --bind 0.0.0.0:8000 app:app
   or Jawi fall back to whatever fonts the server has, which may show empty boxes. Add a font with the
   needed script to `static/fonts/` and `resume_templates/shared.css` to support it.
 - **"Dates under title" uses more space.** Each entry gains a line, so a full one-page resume can spill onto a second page.
-- **Preview vs PDF.** The preview is the browser's rendering of the same HTML, so line breaks can differ slightly from the PDF.
+- **The preview is images.** Text in the preview cannot be selected. Screen reader users are pointed to the downloads.
+- **Word page breaks can differ.** The `.docx` uses standard fonts and Word's own layout, so a resume that just fits
+  one PDF page might wrap differently in Word.
 - **Adding entries needs JavaScript.** Without JS, the form still works but shows one card per section.
 
 ## Ideas for later
 
 - Optional profile photo, uploaded per request and never stored
-- DOCX export for employers who ask for Word
 - Bahasa Melayu section titles toggle
-- A warning in the preview when the resume runs past one page

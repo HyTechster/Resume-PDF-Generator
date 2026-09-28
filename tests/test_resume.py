@@ -9,8 +9,9 @@ sys.path.insert(0, str(ROOT))
 
 from werkzeug.datastructures import MultiDict  # noqa: E402
 
-from app import app, pdf_filename  # noqa: E402
-from render import LocalStaticFetcher, Style, available_templates, render_html  # noqa: E402
+from app import app, download_name  # noqa: E402
+from render import LocalStaticFetcher, Style, available_templates, render_html, render_page_images  # noqa: E402
+from render_docx import DOCX_MIME, render_docx  # noqa: E402
 from resume import Resume, Section, from_form, parse_markdown, validate  # noqa: E402
 
 SAMPLE = (ROOT / "samples" / "sample.md").read_text(encoding="utf-8")
@@ -186,8 +187,9 @@ def test_preview_renders_resume(client):
     res = client.post("/preview", data={"mode": "markdown", "markdown": SAMPLE, "template": "modern", "accent": "burgundy"})
     assert res.status_code == 200
     assert b"Nurul Aisyah Kamarudin" in res.data
-    assert b"srcdoc=" in res.data
-    assert b"#74202f" in res.data
+    assert b'src="data:image/webp;base64,' in res.data
+    assert b"Page 1 of 1" in res.data
+    assert b"page-warning" not in res.data
     # Settings are controls on the page, not duplicated as hidden fields.
     assert b'type="hidden" name="accent"' not in res.data
     assert b'type="hidden" name="markdown"' in res.data
@@ -246,11 +248,11 @@ def test_form_mode_pdf(client):
     assert "Tan_Wei_Ming_Resume.pdf" in res.headers["Content-Disposition"]
 
 
-def test_pdf_filename():
-    assert pdf_filename("Nurul Aisyah binti Kamarudin") == "Nurul_Aisyah_binti_Kamarudin_Resume.pdf"
-    assert pdf_filename("../../etc") == "etc_Resume.pdf"
-    assert pdf_filename("") == "My_Resume.pdf"
-    assert pdf_filename("陈伟明") == "陈伟明_Resume.pdf"
+def test_download_name():
+    assert download_name("Nurul Aisyah binti Kamarudin", "pdf") == "Nurul_Aisyah_binti_Kamarudin_Resume.pdf"
+    assert download_name("../../etc", "pdf") == "etc_Resume.pdf"
+    assert download_name("", "docx") == "My_Resume.docx"
+    assert download_name("陈伟明", "pdf") == "陈伟明_Resume.pdf"
 
 
 def test_unicode_name_download_header(client):
@@ -261,3 +263,70 @@ def test_unicode_name_download_header(client):
 def test_too_large(client):
     res = client.post("/pdf", data={"mode": "markdown", "markdown": "x" * (201 * 1024)})
     assert res.status_code == 413
+
+
+# Preview pages and Word export
+
+def test_page_images_match_pdf_pages():
+    resume = parse_markdown(SAMPLE)
+    one = render_page_images(resume, "classic")
+    assert len(one) == 1 and one[0].data[:4] == b"RIFF"  # WebP
+    assert one[0].height / one[0].width == pytest.approx(297 / 210, abs=0.002)
+    letter = render_page_images(resume, "classic", "Letter")
+    assert letter[0].height / letter[0].width == pytest.approx(11 / 8.5, abs=0.002)
+    assert len(render_page_images(resume, "classic", style=Style(dates="below"))) == 2
+
+
+def test_preview_warns_when_over_one_page(client):
+    res = client.post("/preview", data={"mode": "markdown", "markdown": SAMPLE, "template": "classic", "dates": "below"})
+    assert b"This runs to 2 pages" in res.data
+    assert b"putting dates on the same line" in res.data
+    assert b"Page 2 of 2" in res.data
+
+
+def _docx_text(data: bytes):
+    import io
+    from docx import Document
+    return Document(io.BytesIO(data))
+
+
+def test_docx_download(client):
+    res = client.post("/docx", data={"mode": "markdown", "markdown": SAMPLE, "template": "modern"})
+    assert res.status_code == 200
+    assert res.mimetype == DOCX_MIME
+    assert "Nurul_Aisyah_Kamarudin_Resume.docx" in res.headers["Content-Disposition"]
+    doc = _docx_text(res.data)
+    text = [p.text for p in doc.paragraphs]
+    assert text[0] == "Nurul Aisyah Kamarudin"
+    assert "Experience" in text and "Certifications" in text
+    # Title, a tab, then the date: right-aligned on the same line in Word.
+    assert "Software Engineering Intern	Jun 2025 to Sep 2025" in text
+    assert "Tanjung Data Sdn Bhd, Kuala Lumpur" in text
+    bullets = [p for p in doc.paragraphs if p.style.name == "List Bullet"]
+    assert any(p.text.startswith("Built a Flask service") for p in bullets)
+    assert doc.core_properties.author == "Nurul Aisyah Kamarudin"
+
+
+def test_docx_follows_style_and_page_size():
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Inches
+    style = Style(accent="navy", header_align="right", body_align="justify", dates="below")
+    doc = _docx_text(render_docx(parse_markdown(SAMPLE), "classic", "Letter", style))
+    assert doc.sections[0].page_width == Inches(8.5)
+    assert doc.paragraphs[0].alignment == WD_ALIGN_PARAGRAPH.RIGHT
+    assert str(doc.paragraphs[0].runs[0].font.color.rgb) == "1F3A5F"
+    head = next(p for p in doc.paragraphs if p.text.startswith("Software Engineering Intern"))
+    assert "	" not in head.text and "Jun 2025" in head.text
+    summary = next(p for p in doc.paragraphs if p.text.startswith("Computer Science graduate"))
+    assert summary.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY
+
+
+def test_docx_escapes_and_rejects_bad_template():
+    r = from_form(MultiDict([("name", "A"), ("experience_title", "<script>x</script>"), ("skills_items", "**Python**")]))
+    doc = _docx_text(render_docx(r, "minimal"))
+    texts = [p.text for p in doc.paragraphs]
+    assert "<script>x</script>" in texts  # shown as plain text, never markup
+    skills = next(p for p in doc.paragraphs if p.text == "Python")
+    assert skills.runs[0].font.bold
+    with pytest.raises(ValueError):
+        render_docx(r, "../app")

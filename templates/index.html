@@ -78,12 +78,12 @@
 
   <div class="intro">
     <h1>Make your resume</h1>
-    <p>Fill in the form or paste Markdown. Pick a layout, preview it, then download a PDF.</p>
+    <p>Fill in the form or paste Markdown. Pick a layout, preview it, then download a PDF or Word file.</p>
   </div>
 
   {% if errors %}
   <div class="alert" role="alert">
-    {% if errors.form %}{{ errors.form }}{% else %}A few things need fixing before we can build your PDF. They are marked below.{% endif %}
+    {% if errors.form %}{{ errors.form }}{% else %}A few things need fixing before we can build your resume. They are marked below.{% endif %}
   </div>
   {% endif %}
 
@@ -188,7 +188,10 @@
 
     <div class="actions">
       <button type="submit" class="btn btn-primary">Preview</button>
-      <button type="submit" class="btn btn-secondary" formaction="{{ url_for('pdf') }}">Download PDF</button>
+      <div class="actions-row">
+        <button type="submit" class="btn btn-secondary" formaction="{{ url_for('pdf') }}">Download PDF</button>
+        <button type="submit" class="btn btn-secondary" formaction="{{ url_for('docx') }}">Download Word</button>
+      </div>
     </div>
     <p class="side-note">Your draft is saved in this browser only.</p>
   </aside>

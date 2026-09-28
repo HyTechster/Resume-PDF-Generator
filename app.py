@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import secrets
+from base64 import b64encode
 from io import BytesIO
 
 from flask import Flask, render_template, request, send_file
@@ -18,9 +19,10 @@ from render import (
     STYLE_OPTIONS,
     Style,
     available_templates,
-    render_html,
+    render_page_images,
     render_pdf,
 )
+from render_docx import DOCX_MIME, render_docx
 from resume import FORM_SECTIONS, Resume, from_form, parse_markdown, validate
 
 app = Flask(__name__)
@@ -75,10 +77,21 @@ def _read_request() -> tuple[Resume, str, str, Style, dict[str, str]]:
     return resume, template, page_size, Style.from_form(form), errors
 
 
-def pdf_filename(name: str) -> str:
+def download_name(name: str, ext: str) -> str:
     # \w keeps letters in any script (Chinese, Tamil, Jawi); Flask encodes non-ASCII names for the header.
     safe = re.sub(r"[^\w]+", "_", name).strip("_") or "My"
-    return f"{safe}_Resume.pdf"
+    return f"{safe}_Resume.{ext}"
+
+
+def _download(ext: str):
+    resume, template, page_size, style, errors = _read_request()
+    if errors:
+        return _form_page(request.form, errors, 400)
+    if ext == "pdf":
+        data, mimetype = render_pdf(resume, template, page_size, style), "application/pdf"
+    else:
+        data, mimetype = render_docx(resume, template, page_size, style), DOCX_MIME
+    return send_file(BytesIO(data), mimetype=mimetype, as_attachment=True, download_name=download_name(resume.name, ext))
 
 
 @app.get("/")
@@ -91,9 +104,14 @@ def preview():
     resume, template, page_size, style, errors = _read_request()
     if errors:
         return _form_page(request.form, errors, 400)
+    # The preview shows images of the real PDF pages, so page breaks match the download exactly.
+    pages = [
+        {"src": "data:image/webp;base64," + b64encode(page.data).decode(), "width": page.width // 2, "height": page.height // 2}
+        for page in render_page_images(resume, template, page_size, style)
+    ]
     return render_template(
         "preview.html",
-        resume_html=render_html(resume, template, page_size, style),
+        pages=pages,
         name=resume.name,
         hidden=[(k, v) for k, v in request.form.items(multi=True) if k not in SETTING_KEYS],
         values=request.form,
@@ -103,15 +121,12 @@ def preview():
 
 @app.post("/pdf")
 def pdf():
-    resume, template, page_size, style, errors = _read_request()
-    if errors:
-        return _form_page(request.form, errors, 400)
-    return send_file(
-        BytesIO(render_pdf(resume, template, page_size, style)),
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=pdf_filename(resume.name),
-    )
+    return _download("pdf")
+
+
+@app.post("/docx")
+def docx():
+    return _download("docx")
 
 
 @app.errorhandler(RequestEntityTooLarge)

@@ -19,14 +19,24 @@
 
     <div class="actions">
       <button type="submit" class="btn btn-primary">Download PDF</button>
+      <button type="submit" class="btn btn-secondary" formaction="{{ url_for('docx') }}">Download Word</button>
       <button type="submit" class="btn btn-secondary" formaction="{{ url_for('preview') }}" data-update>Update preview</button>
     </div>
+    <p class="side-note">The Word file uses standard fonts, so its page breaks can differ slightly.</p>
   </form>
 
   <div class="sheet-wrap">
-    <iframe class="sheet sheet-{{ values.get('page_size', 'A4')|lower }}" title="Resume preview for {{ name }}"
-      sandbox="allow-same-origin" srcdoc="{{ resume_html }}"></iframe>
-    <p class="preview-note">The PDF may break lines slightly differently from this preview.</p>
+    <p class="visually-hidden">The preview shows each page as an image. Download the PDF or Word file to read or copy the text.</p>
+    {% if pages|length > 1 %}
+    <p class="page-warning" role="status">This runs to {{ pages|length }} pages. Most graduate resumes fit on one, so try trimming a few points{% if values.get('dates') == 'below' %} or putting dates on the same line{% endif %}.</p>
+    {% endif %}
+    {% for page in pages %}
+    <figure class="page">
+      <img class="sheet" src="{{ page.src }}" width="{{ page.width }}" height="{{ page.height }}"
+        alt="Page {{ loop.index }} of {{ pages|length }} of the resume for {{ name }}"{% if not loop.first %} loading="lazy"{% endif %}>
+      <figcaption>Page {{ loop.index }} of {{ pages|length }}</figcaption>
+    </figure>
+    {% endfor %}
   </div>
 </div>
 {% endblock %}
